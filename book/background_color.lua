@@ -3,7 +3,6 @@ local ColorWheelWidget = require("widgets/colorwheelwidget")
 local Device = require("device")
 local Dispatcher = require("dispatcher")
 local Document = require("document/document")
-local FileManager = require("apps/filemanager/filemanager")
 local FootnoteWidget = require("ui/widget/footnotewidget")
 local KoptInterface = require("document/koptinterface")
 local ReaderStyleTweak = require("apps/reader/modules/readerstyletweak")
@@ -12,7 +11,7 @@ local Screen = Device.screen
 local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
+local moon = require("lib/moon")
 local util = require("util")
 
 -- Settings
@@ -134,7 +133,7 @@ local function pick_color_callback()
         local wheel
         local should_invert_wheel = AltNightBackgroundColor.get() or not InvertBackgroundColor.get()
         wheel = ColorWheelWidget:new({
-            title_text = "Pick background color",
+            title_text = _("选择背景颜色"),
             hue = h,
             saturation = s,
             value = v,
@@ -159,18 +158,18 @@ end
 local function background_color_menu()
     return {
         text_func = function()
-            return T(nf_icons.label(nf_icons.FORMAT_COLOR, _("Background color: %1")), getBackgroundColor())
+            return T(_("背景颜色：%1"), getBackgroundColor())
         end,
         sub_item_table = {
             {
                 text_func = function()
-                    return T(_("Background color: %1"), getBackgroundColor())
+                    return T(_("背景颜色：%1"), getBackgroundColor())
                 end,
                 keep_menu_open = true,
                 callback = pick_color_callback(),
             },
             {
-                text = _("Alternative night mode color"),
+                text = _("夜间模式使用独立颜色"),
                 checked_func = AltNightBackgroundColor.get,
                 callback = function()
                     AltNightBackgroundColor.toggle()
@@ -183,7 +182,7 @@ local function background_color_menu()
                 end,
             },
             {
-                text = _("Invert color in night mode"),
+                text = _("夜间模式反转颜色"),
                 enabled_func = function() return not AltNightBackgroundColor.get() end,
                 checked_func = InvertBackgroundColor.get,
                 callback = function()
@@ -198,7 +197,7 @@ local function background_color_menu()
                 separator = true,
             },
             {
-                text = _("Apply to reader pages (pdf, djvu, cbz...)"),
+                text = _("应用到阅读页面（PDF、DjVu、CBZ…）"),
                 checked_func = FixedBackgroundColor.get,
                 callback = function()
                     FixedBackgroundColor.toggle()
@@ -214,6 +213,12 @@ end
 local original_ReaderStyleTweak_getCssText = ReaderStyleTweak.getCssText
 function ReaderStyleTweak:getCssText()
     local original_css = original_ReaderStyleTweak_getCssText(self) or ""
+
+    -- Moon 的阅读壁纸由 Moon 自己绘制，此处让出背景色
+    if moon.readerWallpaperActive() then
+        return original_css
+    end
+
     local css_hex = calculateHex(true, self.ui.document)
 
     local bg_css = [[
@@ -241,9 +246,7 @@ function FootnoteWidget:init()
     htmlwidget.htmlbox_widget:setContent(htmlwidget.html_body, htmlwidget.css, htmlwidget.default_font_size,
         htmlwidget.is_xhtml, nil, htmlwidget.html_resource_directory)
 
-    -- Use book background color for container
-    self.container.original_background = bg_cached.bgcolor
-    self.container.background = common.EXCLUSION_COLOR
+    self.container.background = bg_cached.bgcolor
 end
 
 -- Helper: check if dual pages are enabled (comicreader.koplugin)
@@ -483,15 +486,6 @@ function KoptInterface:drawContextPage(doc, target, x, y, rect, pageno, zoom, ro
 end
 
 -- Recompute colors upon event call
-local original_FileManager_onRecomputeAllColors = FileManager.onRecomputeAllColors
-function FileManager:onRecomputeAllColors()
-    if original_FileManager_onRecomputeAllColors then
-        original_FileManager_onRecomputeAllColors(self)
-    end
-
-    recomputeBGColor()
-end
-
 local original_ReaderUI_onRecomputeAllColors = ReaderUI.onRecomputeAllColors
 function ReaderUI:onRecomputeAllColors()
     if original_ReaderUI_onRecomputeAllColors then
@@ -501,19 +495,7 @@ function ReaderUI:onRecomputeAllColors()
     recomputeBGColor()
 end
 
--- Event handlers for when a theme is applied
-local original_FileManager_onApplyTheme = FileManager.onApplyTheme
-function FileManager:onApplyTheme()
-    if original_FileManager_onApplyTheme then
-        original_FileManager_onApplyTheme(self)
-    end
-
-    bg_cached.hex = HexBackgroundColor.get()
-    bg_cached.night_hex = NightHexBackgroundColor.get()
-    bg_cached.alt_night_color = AltNightBackgroundColor.get()
-    recomputeBGColor()
-end
-
+-- Event handler for when a theme is applied
 local original_ReaderUI_onApplyTheme = ReaderUI.onApplyTheme
 function ReaderUI:onApplyTheme()
     if original_ReaderUI_onApplyTheme then
@@ -539,25 +521,22 @@ local function SetBookBackgroundColorFixed(apply_on)
     common.refreshPage()
 end
 
-FileManager.onToggleBookBackgroundColorFixed = ToggleBookBackgroundColorFixed
 ReaderUI.onToggleBookBackgroundColorFixed = ToggleBookBackgroundColorFixed
-
-FileManager.onSetBookBackgroundColorFixed = SetBookBackgroundColorFixed
 ReaderUI.onSetBookBackgroundColorFixed = SetBookBackgroundColorFixed
 
 Dispatcher:registerAction("toggle_book_background_color_fixed", {
     category = "none",
     event = "ToggleBookBackgroundColorFixed",
-    title = _("Toggle background color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("切换是否将背景颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     general = true,
 })
 
 Dispatcher:registerAction("set_book_background_color_fixed", {
     category = "string",
     event = "SetBookBackgroundColorFixed",
-    title = _("Set background color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("设置是否将背景颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     args = { true, false },
-    toggle = { _("on"), _("off") },
+    toggle = { _("开"), _("关") },
     general = true,
 })
 

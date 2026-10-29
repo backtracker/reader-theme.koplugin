@@ -4,16 +4,15 @@ local ReaderUI = require("apps/reader/readerui")
 local Screen = require("device").screen
 local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
-local background_color_menu = require("book/background_color").menu
+local background_color = require("book/background_color")
 local common = require("lib/common")
-local font_color_menu = require("book/font_color").menu
+local font_color = require("book/font_color")
 local highlight_colors_menu = require("book/highlight_colors")
-local link_color_menu = require("book/link_color").menu
-local logger = require("logger")
-local nf_icons = require("lib/nf_icons")
+local link_color = require("book/link_color")
+local moon = require("lib/moon")
 local progress_bar_colors_menu = require("book/progress_bar_colors")
 local progress_bar_roundness_menu = require("book/progress_bar_roundness")
-local _ = require("gettext")
+local themes_menu = require("book/themes")
 
 local function refreshCSS()
     if ReaderUI.instance and ReaderUI.instance.rolling then
@@ -21,18 +20,22 @@ local function refreshCSS()
     end
 end
 
-local function book_menu()
-    return {
-        text_func = function() return nf_icons.label(nf_icons.BOOK_OPEN, _("Book")) end,
-        sub_item_table = {
-            background_color_menu(),
-            font_color_menu(),
-            common.add_separator(link_color_menu()),
-            highlight_colors_menu(),
-            progress_bar_colors_menu(),
-            progress_bar_roundness_menu(),
-        }
+local function book_items()
+    local items = {
+        themes_menu(),
+        common.add_separator(background_color.menu()),
+        font_color.menu(),
+        common.add_separator(link_color.menu()),
+        highlight_colors_menu(),
     }
+
+    -- Moon 接管底部栏时原生进度条不会显示，隐藏相关菜单
+    if not moon.replacesNativeBars() then
+        table.insert(items, progress_bar_colors_menu())
+        table.insert(items, progress_bar_roundness_menu())
+    end
+
+    return items
 end
 
 -- Setting for the fixed page color
@@ -40,7 +43,6 @@ local FixedBackgroundColor = Setting("book_background_color_fixed", true)
 local FixedFontColor = Setting("book_font_color_fixed", true)
 local FixedLinkColor = Setting("book_link_color_fixed", true)
 
--- Helpers that call events
 local function recomputeAllColors()
     UIManager:broadcastEvent(Event:new("RecomputeAllColors"))
 end
@@ -58,6 +60,12 @@ function UIManager:ToggleNightMode(night_mode)
 
     if common.has_document_open() then
         recomputeAllColors()
+
+        local footer = ReaderUI.instance.view and ReaderUI.instance.view.footer
+        if footer and footer.progress_bar then
+            footer.progress_bar:_setColors(footer.settings.progress_style_thin)
+            footer:refreshFooter(true)
+        end
 
         refreshCSS()
         if FixedBackgroundColor.get() or FixedFontColor.get() or FixedLinkColor.get() then
@@ -89,4 +97,4 @@ function ReaderTypeset:onToggleNightmodeImages(toggle)
     end
 end
 
-return book_menu
+return book_items

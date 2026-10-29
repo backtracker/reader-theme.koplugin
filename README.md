@@ -1,153 +1,56 @@
-# appearance.koplugin
+# reader-theme.koplugin
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![GitHub Release](https://img.shields.io/github/v/release/Euphoriyy/appearance.koplugin)](https://github.com/Euphoriyy/appearance.koplugin/releases)
 [![Lua](https://img.shields.io/badge/Lua-%232C2D72.svg?logo=lua&logoColor=white)](#)
-[![GitHub Downloads](https://img.shields.io/github/downloads/Euphoriyy/appearance.koplugin/total.svg)](https://github.com/Euphoriyy/appearance.koplugin/releases)
 
-The ultimate plugin to customize [<img src="img/koreader.png" width="24" /> KOReader](https://koreader.rocks)'s appearance in any way you would like! It adds features that are similar to those found in other ebook readers like [Readest](https://readest.com), [Librera](https://librera.mobi), & [Moon+ Reader](https://moondownload.com), making it the ideal reader.
+只作用于**阅读器（打开书籍之后）**的阅读外观插件，用于和**月读（Moon）**等界面主题插件配合使用：界面主题交给 Moon，本插件只负责阅读页正文与底栏进度条的外观，因此不会与 Moon 的界面主题互相覆盖。
 
-## Features
+## 功能
 
-| Category | What you can change |
+| 分类 | 可调整的内容 |
 |---|---|
-| **Themes** | Apply full UI & book themes with one tap |
-| **Colors** | Customize background, font, accent, link, highlight, and progress bar colors |
-| **Color wheel** | Choose colors with a visual RGB color wheel |
-| **Fonts** | Customize your own unique UI and dictionary fonts |
-| **Page style** | Adjust page colors for a comfortable reading experience (both reflowable & fixed-layout documents such as EPUBs, PDFs, DJVUs, & CBZs) |
-| **Backgrounds** | Set custom background images (like a wallpaper) |
-| **Borders** | Customize the roundness and thickness of borders |
-| **System theme detection** | Sync KOReader's theme to your system (on Linux) |
+| **阅读主题** | 一键套用日间 / 夜间阅读主题，可添加、重命名、修改颜色、删除 |
+| **颜色** | 阅读页背景色、文字色、链接色 |
+| **高亮颜色** | 标注颜色的名称与色值，设置默认高亮色 |
+| **进度条颜色** | 底部进度条的已读 / 未读颜色（粗、细两种样式） |
+| **进度条圆角** | 进度条圆角半径与圆角填充 |
+| **取色器** | 可视化 RGB 色轮取色 |
+| **固定版式页面** | 背景色 / 文字色 / 链接色可应用到 PDF、DjVu、CBZ 等固定版式文档 |
 
-## Installation
-1. Download the latest release.
-2. Extract the `appearance.koplugin` directory from the archive.
-3. Move the `appearance.koplugin` directory to the `koreader/plugins` folder on your device.
-4. Restart KOReader.
+## 安装
 
-## Configuration
-The plugin can be fully configured under the new **Appearance** menu on the <sub><img src="img/appbar.settings.svg" style="width:2%; height:auto;"></sub> **Settings** tab. The appearance of the *User interface* and *Book* can be configured separately as well together via *Themes*.
+1. 下载最新的 `reader-theme.koplugin.zip`。
+2. 解压得到 `reader-theme.koplugin` 文件夹。
+3. 将文件夹放到设备的 `koreader/plugins` 目录下。
+4. 重启 KOReader。
 
-## Usage
+## 使用
 
-<details>
-<summary><strong>Applying a Theme</strong></summary>
+在阅读界面中打开菜单，选择 **设置 → 阅读外观**。插件只在阅读器中注册菜单，文件管理器与桌面不会出现它的入口。
 
-<br>
+- **阅读主题**：选择任意主题即可立即应用；长按主题可重命名、修改背景色 / 文字色 / 链接色或删除。主题也可通过“手势 / 配置”里的调度动作切换。
+- **背景颜色 / 文字颜色 / 链接颜色**：点击色值打开色轮取色。可分别设置夜间模式使用的独立颜色、是否在夜间模式反转颜色，以及是否把颜色应用到固定版式页面（PDF、DjVu、CBZ…）。
+- **高亮颜色**：点击颜色直接改色，长按可重命名、设为默认或重置。
+- **进度条颜色 / 圆角**：调整底部进度条已读、未读颜色和圆角。若 Moon 接管了底部栏，这两项菜单会自动隐藏。
 
-Navigate to **🞂 Appearance 🞂 Themes** and select any theme from the list. The UI updates instantly without needing to restart.
- 
-To go back to the default look, choose **🞂 Appearance 🞂 Themes 🞂 Reset themes 🞂 Reset to default themes**. This clears all theme overrides and restores KOReader's original colors.
+## 与 Moon 共存
 
-Themes can also be selected automatically using dispatcher actions (e.g., via profiles or gestures).
+- 插件以 `is_doc_only` 方式加载，只在阅读器中工作，不修改文件管理器、桌面、对话框等界面。
+- 检测到 Moon 正在阅读页使用壁纸（`wallpaper_reader` 已开启且配置了图片）时，本插件不会写入阅读页背景色，避免覆盖壁纸。
+- 检测到 Moon 接管了阅读器底部栏时，自动隐藏本插件的进度条菜单。
+- Moon 的配置文件只读不写；本插件自己的设置保存在 `koreader/settings/appearance.lua`。
 
-</details>
+## 配置说明
 
-<details>
-<summary><strong>Adding/Configuring Themes</strong></summary>
+设置保存在 `koreader/settings/appearance.lua`。旧版本的 `book_*` 系列设置键与阅读主题列表（`ui_themes_day` / `ui_themes_night`）会继续沿用，升级后原有配色与自定义主题不会丢失。
 
-<br>
+## 致谢
 
-Themes can be added by pressing **🞂 Appearance 🞂 Themes 🞂 Add a theme**, from there you can choose the background and foreground colors for the theme.
+- 功能源自 [appearance.koplugin](https://github.com/Euphoriyy/appearance.koplugin) 的阅读页部分。
+- 主题功能参考 [2-color-theme.lua](https://github.com/artemartemenko/koreader-color-themes) by [@artemartemenko](https://github.com/artemartemenko)（GPL-3.0）。
+- 取色器亮度滑杆参考 [ink-away.koplugin](https://github.com/EmirErtorer/ink-away.koplugin) by [@EmirErtorer](https://github.com/EmirErtorer)（MIT）。
+- 打包脚本参考 [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin)（AGPL-3.0）。
 
-Themes can be configured by holding down on them when selecting them from the list. Then, an option menu will show that gives you the ability to rename, change the colors of, and delete the theme.
+## 许可证
 
-</details>
-
-<details>
-<summary><strong>Setting a Background Image</strong></summary>
- 
-<br>
-
-Go to **🞂 Appearance 🞂 User interface 🞂 Background image** and pick an image from your device storage. The background will apply immediately across the UI.
-
-You can select where you want the background image to be shown, such as in the file browser, reader, the top menu, and SimpleUI homescreen.
- 
-To remove it, return to the same menu and hold down on the currently selected image.
-
-A background image can also be automatically set/changed by using the "Select background image" action in profiles. This allows you to set one of the past background images automatically or by gestures.
-
-</details>
- 
-<details>
-<summary><strong>Changing Colors</strong></summary>
-
-<br>
-
-Under **🞂 Appearance 🞂 User interface**:
- 
-- **Background color** - the main canvas behind text and UI elements
-- **Foreground color** - the color of all rendered text and borders/outlines
-- **Accent color** - the auxillary color of UI elements like switches or progress bars
-
-Under **🞂 Appearance 🞂 Book**:
- 
-- **Background color** - the color of the page background
-- **Font color** - the color of the page text
-- **Link color** - the color of the page links
-- **Highlight colors** - the colors used when annotating (each name can also be edited)
-- **Progress bar colors** - the read/unread colors of the book progress bar in the footer
- 
-Each color can be chosen by color picker and code. Changes apply live so you can preview as you go. There are **Advanced settings** as well that allow you to experiment with more fine-tuned tweaking.
-
-</details>
-
-<details>
-<summary><strong>Changing the UI/Dictionary Font</strong></summary>
-
-<br>
-
-Go to **🞂 Appearance 🞂 User interface 🞂 Font** or **🞂 Appearance 🞂 User interface 🞂 Dictionary font**. From there you will see a list of the fonts found (the exact same as the ones for books), and you can select whatever font you would like.
-
-If at any time, you would like the original look, you can toggle **Enable font replacement** to disable your changes.
-
-The supported font formats are `.ttf`, `.otf`, `.pfb`, and `.pfa`.
-
-These are the folders where you may place your fonts:
-- Android/Boox: `koreader/fonts/`
-- PocketBook: `applications/koreader/fonts` (Create the folder) 
-- Kobo: `.adds/koreader/fonts` (Create the folder)
-- Desktop/Linux: Install the font for the system *OR* `.local/share/fonts`
-
-[For more information, read here.](https://github.com/koreader/koreader/wiki/Fonts)
-
-</details>
-
-<details>
-<summary><strong>Updating the Plugin</strong></summary>
-
-<br>
-
-Go to **🞂 Appearance 🞂 About 🞂 Check for updates** to fetch and install the latest release of the plugin. Restart KOReader after installing for the changes to apply.
-
-You can also enable automatic checking for updates to be notified when new versions are released.
-
-</details>
-
-## Compatibility
-Tested fully on e-ink, desktop, and mobile devices. Fully compatible with popular plugins like [Rakuyomi](https://github.com/tachibana-shin/rakuyomi) and [SimpleUI](https://github.com/doctorhetfield-cmd/simpleui.koplugin).
-
-Fixed-layout document background and font color customization is compatible with the dual pages feature introduced by [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin).
-
-For rounded book & folder covers to work properly with the background color, [my special rounded cover patches](https://github.com/Euphoriyy/KOReader.patches#-2-rounded-coverslua) should be used.
-
-## Acknowledgements
-- Features originally integrated from [my KOReader patches](https://github.com/Euphoriyy/KOReader.patches).
-- Theming functionality inspired by [2-color-theme.lua](https://github.com/artemartemenko/koreader-color-themes) by [@artemartemenko](https://github.com/artemartemenko) (GPL-3.0).
-- The packaging system in use is based on work from [ComicReader](https://github.com/KORComic/comicreader.koplugin) by [@OGKevin](https://github.com/OGKevin) (AGPL-3.0).
-- UI font replacement based on the patch [2--ui-font.lua](https://github.com/sebdelsol/KOReader.patches/#-2-ui-font) by [@sebdelsol](https://github.com/sebdelsol) under the MIT license.
-- Dictionary font replacement based on the patch [2-custom-ui-fonts.lua](https://github.com/gennaro-tedesco/KOReader.patches/#2-custom-ui-fonts) by [@gennaro-tedesco](https://github.com/gennaro-tedesco).
-- In-plugin updater adapted from the one used in [Bookends](https://github.com/AndyHazz/bookends.koplugin) by [@AndyHazz](https://github.com/AndyHazz) (AGPL-3.0).
-- Markdown implementation for Lua sourced from [markdown.lua](https://github.com/mpeterv/markdown) by [@mpeterv](https://github.com/mpeterv) and [@niklasfrykholm](https://github.com/niklasfrykholm) under the MIT license.
-- Nerd font glyph codepoints and method to handle links sourced from [bookshelf.koplugin](https://github.com/AndyHazz/bookshelf.koplugin) by [@AndyHazz](https://github.com/AndyHazz) (AGPL-3.0).
-- Brightness slider used in color wheel widget adapted from [ink-away.koplugin](https://github.com/EmirErtorer/ink-away.koplugin) by [@EmirErtorer](https://github.com/EmirErtorer) under the MIT license.
-
-## Support
-If you want to support me, you can star this repository or buy me a coffee. :)
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X8X21UH4E1)
-
-## License
-This project is licensed under the **GNU General Public License v3.0**.
-See the [LICENSE](./LICENSE) file for full details.
+本项目基于 **GNU General Public License v3.0** 发布，详见 [LICENSE](./LICENSE)。

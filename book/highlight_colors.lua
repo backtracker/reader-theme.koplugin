@@ -8,9 +8,7 @@ local Screen = require("device").screen
 local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
 local _ = require("gettext")
-local T = require("ffi/util").template
 
 local HIGHLIGHT_COLOR_KEYS = {
     "red",
@@ -25,15 +23,15 @@ local HIGHLIGHT_COLOR_KEYS = {
 }
 
 local DEFAULT_HIGHLIGHT_COLOR_NAMES = {
-    _("Red"),
-    _("Orange"),
-    _("Yellow"),
-    _("Green"),
-    _("Olive"),
-    _("Cyan"),
-    _("Blue"),
-    _("Purple"),
-    _("Gray"),
+    _("红色"),
+    _("橙色"),
+    _("黄色"),
+    _("绿色"),
+    _("橄榄绿"),
+    _("青色"),
+    _("蓝色"),
+    _("紫色"),
+    _("灰色"),
 }
 
 -- Sourced from ffi/blitbuffer
@@ -57,6 +55,7 @@ local FALLBACK_COLOR = Screen:isColorEnabled() and "yellow" or "gray"
 
 -- Settings
 local HighlightColors = Setting("book_highlight_colors", DEFAULT_HIGHLIGHT_COLORS)
+-- 与 Moon 共用全局默认高亮颜色，保持两边的默认色一致
 local DefaultHighlightColor = Setting("highlight_color", FALLBACK_COLOR, true)
 
 local function getHighlightColorIndex(color)
@@ -137,7 +136,7 @@ local function pick_color_menu(touchmenu_instance, original_hex, callback)
     local h, s, v = common.hexToHSV(original_hex)
     local wheel
     wheel = ColorWheelWidget:new({
-        title_text = _("Pick highlight color"),
+        title_text = _("选择高亮颜色"),
         hue = h,
         saturation = s,
         value = v,
@@ -164,6 +163,34 @@ end
 
 local edit_menu
 
+-- 夜间模式下整个画面会被反色，预览色需要预先反色才能显示本色
+local function previewColor(hex)
+    local color = Blitbuffer.colorFromString(hex)
+    return Screen.night_mode and color:invert() or color
+end
+
+-- 深色底用白字，浅色底用黑字
+local function contrastTextColor(hex)
+    local r = tonumber(hex:sub(2, 3), 16) or 0
+    local g = tonumber(hex:sub(4, 5), 16) or 0
+    local b = tonumber(hex:sub(6, 7), 16) or 0
+    local color = (0.299 * r + 0.587 * g + 0.114 * b > 140)
+        and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE
+    return Screen.night_mode and color:invert() or color
+end
+
+local function colorizeHighlightButtons(dialog)
+    local buttontable = dialog and dialog.buttontable
+    if not buttontable then return end
+    for i, color in ipairs(HIGHLIGHT_COLOR_KEYS) do
+        local button = buttontable.button_by_id[i]
+        local hex = getHighlightColorHex(color)
+        if button and button.label_widget and hex then
+            button.label_widget.fgcolor = contrastTextColor(hex)
+        end
+    end
+end
+
 local function highlightColorDialog(touchmenu_instance)
     local dialog
     local buttons = {}
@@ -173,10 +200,12 @@ local function highlightColorDialog(touchmenu_instance)
         if color == default_highlight_color then
             text = text .. " ★"
         end
+        local hex = getHighlightColorHex(color) or "#333333"
         buttons[i] = { {
             text = text,
             menu_style = true,
-            background = ReaderHighlight.getHighlightColor(nil, color),
+            background = previewColor(hex),
+            id = i,
             callback = function()
                 local original_hex = getHighlightColorHex(color)
                 UIManager:show(color_menu(touchmenu_instance, original_hex, function(hex)
@@ -196,46 +225,32 @@ local function highlightColorDialog(touchmenu_instance)
         colorful = true,
         dithered = true,
     }
+    colorizeHighlightButtons(dialog)
     return dialog
 end
 
 edit_menu = function(touchmenu_instance, color, updialog_ref)
-    local button_bg_colors = {
-        Blitbuffer.colorFromString("#BA8E23"),
-        Blitbuffer.colorFromString("#2D728F"),
-        Blitbuffer.colorFromString("#DC6BAD"),
-        Blitbuffer.colorFromString("#FF5964"),
-    }
-
-    for i, bg_color in ipairs(button_bg_colors) do
-        if Screen.night_mode then
-            button_bg_colors[i] = bg_color:invert()
-        end
-    end
-
     local dialog
 
     local edit_buttons = {
         { {
-            text = T(_("§white %1 Rename§r "), nf_icons.CURSOR_TEXT),
+            text = _("重命名"),
             menu_style = true,
-            original_background = button_bg_colors[1],
-            background = common.EXCLUSION_COLOR,
             callback = function()
                 local input_dialog
                 input_dialog = InputDialog:new({
-                    title = "Enter the color's new name:",
+                    title = _("输入颜色的新名称："),
                     input = ReaderHighlight.getHighlightColorString(nil, color),
                     buttons = {
                         {
                             {
-                                text = "Cancel",
+                                text = _("取消"),
                                 callback = function()
                                     UIManager:close(input_dialog)
                                 end,
                             },
                             {
-                                text = "Save",
+                                text = _("保存"),
                                 callback = function()
                                     local text = input_dialog:getInputText()
 
@@ -258,10 +273,8 @@ edit_menu = function(touchmenu_instance, color, updialog_ref)
             end,
         } },
         { {
-            text = T(_("§white %1 Edit color§r "), nf_icons.EYEDROPPER),
+            text = _("修改颜色"),
             menu_style = true,
-            original_background = button_bg_colors[2],
-            background = common.EXCLUSION_COLOR,
             callback = function()
                 UIManager:show(pick_color_menu(touchmenu_instance, getHighlightColorHex(color), function(hex)
                     setHighlightColorHex(color, hex)
@@ -276,10 +289,8 @@ edit_menu = function(touchmenu_instance, color, updialog_ref)
             end,
         } },
         { {
-            text = _("§white ★ Make default§r "),
+            text = _("★ 设为默认"),
             menu_style = true,
-            original_background = button_bg_colors[3],
-            background = common.EXCLUSION_COLOR,
             callback = function()
                 DefaultHighlightColor.set(color)
 
@@ -290,10 +301,8 @@ edit_menu = function(touchmenu_instance, color, updialog_ref)
             end,
         } },
         { {
-            text = T(_("§white %1 Reset§r "), nf_icons.REFRESH),
+            text = _("重置"),
             menu_style = true,
-            original_background = button_bg_colors[4],
-            background = common.EXCLUSION_COLOR,
             callback = function()
                 setHighlightColorString(color, DEFAULT_HIGHLIGHT_COLOR_NAMES[getHighlightColorIndex(color)])
                 setHighlightColorHex(color, DEFAULT_HIGHLIGHT_COLOR_HEXES[getHighlightColorIndex(color)])
@@ -318,7 +327,7 @@ end
 -- Appearance menu
 local function highlight_colors_menu()
     return {
-        text_func = function() return nf_icons.label(nf_icons.GREASE_PENCIL, _("Highlight colors")) end,
+        text_func = function() return _("高亮颜色") end,
         callback = function(touchmenu_instance)
             UIManager:show(highlightColorDialog(touchmenu_instance))
         end

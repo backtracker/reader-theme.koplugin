@@ -1,15 +1,14 @@
 local Blitbuffer = require("ffi/blitbuffer")
 local ColorWheelWidget = require("widgets/colorwheelwidget")
 local Dispatcher = require("dispatcher")
-local FileManager = require("apps/filemanager/filemanager")
 local FootnoteWidget = require("ui/widget/footnotewidget")
 local ReaderStyleTweak = require("apps/reader/modules/readerstyletweak")
 local ReaderUI = require("apps/reader/readerui")
 local Screen = require("device").screen
+local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
 local util = require("util")
 
 local HexLinkColor = Setting("book_link_color_hex", nil)
@@ -78,7 +77,6 @@ local function setLinkColor(hex)
 end
 
 -- Menus
-local _ = require("gettext")
 local T = require("ffi/util").template
 
 local function pick_color_callback()
@@ -87,7 +85,7 @@ local function pick_color_callback()
         local wheel
         local should_invert_wheel = AltNightLinkColor.get() or not InvertLinkColor.get()
         wheel = ColorWheelWidget:new({
-            title_text = "Pick link color",
+            title_text = _("选择链接颜色"),
             hue = h,
             saturation = s,
             value = v,
@@ -112,18 +110,18 @@ end
 local function link_color_menu()
     return {
         text_func = function()
-            return T(nf_icons.label(nf_icons.LINK, _("Link color: %1")), getLinkColor() or "default")
+            return T(_("链接颜色：%1"), getLinkColor() or _("默认"))
         end,
         sub_item_table = {
             {
                 text_func = function()
-                    return T(_("Link color: %1"), getLinkColor() or "default")
+                    return T(_("链接颜色：%1"), getLinkColor() or _("默认"))
                 end,
                 keep_menu_open = true,
                 callback = pick_color_callback(),
             },
             {
-                text = _("Reset color"),
+                text = _("重置颜色"),
                 enabled_func = function() return getLinkColor() ~= nil end,
                 keep_menu_open = true,
                 callback = function(touchmenu_instance)
@@ -136,7 +134,7 @@ local function link_color_menu()
                 separator = true,
             },
             {
-                text = _("Alternative night mode color"),
+                text = _("夜间模式使用独立颜色"),
                 checked_func = AltNightLinkColor.get,
                 callback = function()
                     AltNightLinkColor.toggle()
@@ -149,7 +147,7 @@ local function link_color_menu()
                 end,
             },
             {
-                text = _("Invert color in night mode"),
+                text = _("夜间模式反转颜色"),
                 enabled_func = function() return not AltNightLinkColor.get() end,
                 checked_func = InvertLinkColor.get,
                 callback = function()
@@ -164,7 +162,7 @@ local function link_color_menu()
                 separator = true,
             },
             {
-                text = _("Apply to reader pages (pdf, djvu, cbz...)"),
+                text = _("应用到阅读页面（PDF、DjVu、CBZ…）"),
                 checked_func = FixedLinkColor.get,
                 callback = function()
                     FixedLinkColor.toggle()
@@ -194,7 +192,7 @@ function ReaderStyleTweak:getCssText()
     return original_css
 end
 
--- Add font color to footnote popup CSS
+-- Add link color to footnote popup CSS
 local original_FootnoteWidget_init = FootnoteWidget.init
 function FootnoteWidget:init()
     original_FootnoteWidget_init(self)
@@ -217,15 +215,6 @@ function FootnoteWidget:init()
 end
 
 -- Recompute colors upon event call
-local original_FileManager_onRecomputeAllColors = FileManager.onRecomputeAllColors
-function FileManager:onRecomputeAllColors()
-    if original_FileManager_onRecomputeAllColors then
-        original_FileManager_onRecomputeAllColors(self)
-    end
-
-    recomputeLinkColor()
-end
-
 local original_ReaderUI_onRecomputeAllColors = ReaderUI.onRecomputeAllColors
 function ReaderUI:onRecomputeAllColors()
     if original_ReaderUI_onRecomputeAllColors then
@@ -235,19 +224,7 @@ function ReaderUI:onRecomputeAllColors()
     recomputeLinkColor()
 end
 
--- Event handlers for when a theme is applied
-local original_FileManager_onApplyTheme = FileManager.onApplyTheme
-function FileManager:onApplyTheme()
-    if original_FileManager_onApplyTheme then
-        original_FileManager_onApplyTheme(self)
-    end
-
-    link_cached.hex = HexLinkColor.get()
-    link_cached.night_hex = NightHexLinkColor.get()
-    link_cached.alt_night_color = AltNightLinkColor.get()
-    recomputeLinkColor()
-end
-
+-- Event handler for when a theme is applied
 local original_ReaderUI_onApplyTheme = ReaderUI.onApplyTheme
 function ReaderUI:onApplyTheme()
     if original_ReaderUI_onApplyTheme then
@@ -273,25 +250,22 @@ local function SetBookLinkColorFixed(apply_on)
     common.refreshPage()
 end
 
-FileManager.onToggleBookLinkColorFixed = ToggleBookLinkColorFixed
 ReaderUI.onToggleBookLinkColorFixed = ToggleBookLinkColorFixed
-
-FileManager.onSetBookLinkColorFixed = SetBookLinkColorFixed
 ReaderUI.onSetBookLinkColorFixed = SetBookLinkColorFixed
 
 Dispatcher:registerAction("toggle_book_link_color_fixed", {
     category = "none",
     event = "ToggleBookLinkColorFixed",
-    title = _("Toggle link color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("切换是否将链接颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     general = true,
 })
 
 Dispatcher:registerAction("set_book_link_color_fixed", {
     category = "string",
     event = "SetBookLinkColorFixed",
-    title = _("Set link color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("设置是否将链接颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     args = { true, false },
-    toggle = { _("on"), _("off") },
+    toggle = { _("开"), _("关") },
     general = true,
 })
 

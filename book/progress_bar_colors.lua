@@ -7,9 +7,9 @@ local ProgressWidget = require("ui/widget/progresswidget")
 local ReaderFooter = require("apps/reader/modules/readerfooter")
 local ReaderUI = require("apps/reader/readerui")
 local Screen = require("device").screen
+local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
 local _ = require("gettext")
 local T = require("ffi/util").template
 
@@ -89,6 +89,8 @@ local original_init = ReaderFooter.init
 function ReaderFooter:init()
     Settings:init(self)
     original_init(self)
+    -- 仅给阅读器原生的进度条打标记，避免影响 Moon 等其他进度条
+    self.progress_bar._book_footer_bar = true
     self.progress_bar:_setColors(self.settings.progress_style_thin)
 end
 
@@ -141,6 +143,8 @@ function ReaderFooter:loadPreset(preset)
 end
 
 function ProgressWidget:_setColors(thin, preset)
+    if not self._book_footer_bar then return end
+
     local read, unread = colorAttrib(true), colorAttrib(false)
 
     local readColor    = preset and Settings:get(thin, read) or Settings:getPersistent(thin, read)
@@ -179,132 +183,14 @@ function ProgressWidget:updateStyle(thick, height, do_setcolors)
 end
 
 --------------------------------------------
--- Status Bar Menu
---------------------------------------------
-local function getMenuItem(menu, ...) -- path
-    local function findItem(sub_items, texts)
-        local find = {}
-        local texts = type(texts) == "table" and texts or { texts }
-        -- stylua: ignore
-        for _, text in ipairs(texts) do find[text] = true end
-        for _, item in ipairs(sub_items) do
-            local text = item.text or (item.text_func and item.text_func())
-            if text and find[text] then
-                return item
-            end
-        end
-    end
-
-    local sub_items, item
-    for _, texts in ipairs({ ... }) do -- walk path
-        sub_items = (item or menu).sub_item_table
-        if not sub_items then
-            return
-        end
-        item = findItem(sub_items, texts)
-        if not item then
-            return
-        end
-    end
-    return item
-end
-
-function ReaderFooter:_statusBarColorMenu(read)
-    local color_attrib = colorAttrib(read)
-    return {
-        text_func = function()
-            local color = Settings:getPersistent(self.settings.progress_style_thin, color_attrib)
-            local format = read and "Read color: %1" or "Unread color: %1"
-            return T(format, color)
-        end,
-        keep_menu_open = true,
-        enabled_func = function()
-            return not self.settings.disable_progress_bar
-        end,
-        callback = function(touchmenu_instance)
-            local title_text = read and "Pick read color" or "Pick unread color"
-            local current_hex = Settings:getPersistent(self.settings.progress_style_thin, color_attrib)
-            local h, s, v = common.hexToHSV(current_hex)
-            local invert_enabled = read and InvertReadColor.get() or InvertUnreadColor.get()
-            local wheel
-            wheel = ColorWheelWidget:new({
-                title_text = title_text,
-                hue = h,
-                saturation = s,
-                value = v,
-                invert_in_night_mode = not invert_enabled,
-                callback = function(new_hex)
-                    if new_hex ~= current_hex then
-                        -- Process color depending on if the color should be inverted in night mode
-                        local display_hex = new_hex
-                        if Screen.night_mode then
-                            if not invert_enabled then
-                                display_hex = common.invertColor(new_hex)
-                            end
-                        end
-                        local color = Blitbuffer.colorFromString(display_hex)
-
-                        if not color then
-                            UIManager:setDirty(nil, "ui")
-                            return
-                        end
-
-                        Settings:set(self.settings.progress_style_thin, color_attrib, new_hex)
-                        Settings:setPersistent(self.settings.progress_style_thin, color_attrib, new_hex)
-                        self.progress_bar[color_attrib] = color
-                        touchmenu_instance:updateItems()
-                        self:refreshFooter(true)
-                    end
-                    UIManager:setDirty(nil, "ui")
-                end,
-                cancel_callback = function()
-                    UIManager:setDirty(nil, "ui")
-                end,
-            })
-            UIManager:show(wheel)
-        end
-    }
-end
-
-function ReaderFooter:_invertColorMenu(read)
-    local setting = read and InvertReadColor or InvertUnreadColor
-
-    return {
-        text = T(_("Invert %1 color in night mode"), read and "read" or "unread"),
-        checked_func = setting.get,
-        callback = function()
-            setting.toggle()
-            self.progress_bar:_setColors(self.settings.progress_style_thin)
-            self:refreshFooter(true)
-        end,
-    }
-end
-
-local original_ReaderFooter_addToMainMenu = ReaderFooter.addToMainMenu
-function ReaderFooter:addToMainMenu(menu_items)
-    original_ReaderFooter_addToMainMenu(self, menu_items)
-
-    local item = getMenuItem(
-        menu_items.status_bar,
-        _("Progress bar"),
-        { _("Thickness and height: thin"), _("Thickness and height: thick") }
-    )
-    if item then
-        item.text_func = function()
-            return self.settings.progress_style_thin and _("Thickness, height & colors: thin")
-                or _("Thickness, height & colors: thick")
-        end
-        table.insert(item.sub_item_table, self:_statusBarColorMenu(true))
-        table.insert(item.sub_item_table, self:_statusBarColorMenu(false))
-        table.insert(item.sub_item_table, self:_invertColorMenu(true))
-        table.insert(item.sub_item_table, self:_invertColorMenu(false))
-    end
-end
-
---------------------------------------------
 -- Colored Progress Bar Painting
 --------------------------------------------
+local original_ProgressWidget_paintTo = ProgressWidget.paintTo
 function ProgressWidget:paintTo(bb, x, y)
+    if not self._book_footer_bar then
+        return original_ProgressWidget_paintTo(self, bb, x, y)
+    end
+
     local my_size = self:getSize()
     if not self.dimen then
         self.dimen = Geom:new({
@@ -452,12 +338,12 @@ local function color_submenu(thin, read, separator)
     {
         text_func = function()
             local color = Settings:getPersistent(thin, color_attrib)
-            local format = read and "Read color: %1" or "Unread color: %1"
+            local format = read and _("已读颜色：%1") or _("未读颜色：%1")
             return T(format, color)
         end,
         keep_menu_open = true,
         callback = function(touchmenu_instance)
-            local title_text = read and "Pick read color" or "Pick unread color"
+            local title_text = read and _("选择已读颜色") or _("选择未读颜色")
             local current_hex = Settings:getPersistent(thin, color_attrib)
             local h, s, v = common.hexToHSV(current_hex)
             local invert_enabled = read and InvertReadColor.get() or InvertUnreadColor.get()
@@ -505,7 +391,7 @@ local function invert_color_submenu(read)
     local setting = read and InvertReadColor or InvertUnreadColor
 
     return {
-        text = T(_("Invert %1 color in night mode"), read and "read" or "unread"),
+        text = read and _("夜间模式反转已读颜色") or _("夜间模式反转未读颜色"),
         checked_func = setting.get,
         callback = function()
             setting.toggle()
@@ -519,15 +405,15 @@ local function progress_bar_colors_menu()
         Settings:init()
     end
     return {
-        text_func = function() return nf_icons.label(nf_icons.FORMAT_LINE_WEIGHT, _("Progress bar colors")) end,
+        text_func = function() return _("进度条颜色") end,
         sub_item_table = {
             {
-                text = _("Thick progress bar")
+                text = _("粗进度条")
             },
             color_submenu(false, true),
             color_submenu(false, false, true),
             {
-                text = _("Thin progress bar")
+                text = _("细进度条")
             },
             color_submenu(true, true),
             color_submenu(true, false, true),

@@ -20,7 +20,6 @@ local VerticalSpan = require("ui/widget/verticalspan")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Font = require("ui/font")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
 
 --------------------------------------------
 -- Lazy Loading
@@ -29,14 +28,14 @@ local nf_icons = require("lib/nf_icons")
 local font_color
 
 local function get_font_fgcolor()
-    font_color = font_color or require("ui/font_color")
+    font_color = font_color or require("book/font_color")
     return font_color.fgcolor()
 end
 
 ------------------------------------------------------------
 
 local ColorWheelWidget = FocusManager:extend {
-    title_text           = "Pick a color",
+    title_text           = "选择颜色",
     width                = nil,
     width_factor         = 0.6,
 
@@ -59,8 +58,8 @@ local ColorWheelWidget = FocusManager:extend {
     -- | 0.125      | 1.56%           | 64x            |
     draw_scale           = 0.5,
 
-    cancel_text          = "Cancel",
-    ok_text              = "Apply",
+    cancel_text          = "取消",
+    ok_text              = "应用",
 
     callback             = nil,
     cancel_callback      = nil,
@@ -422,7 +421,7 @@ end
 ------------------------------------------------------------
 local function makeLiveValueLabel(parent, face)
     -- Fixed size from the widest text so centering is stable
-    local sample      = TextWidget:new { text = "Brightness: 100%", face = face }
+    local sample      = TextWidget:new { text = "亮度：100%", face = face }
     local sample_size = sample:getSize()
     sample:free()
 
@@ -433,7 +432,7 @@ local function makeLiveValueLabel(parent, face)
     }
     function LiveValue:paintTo(bb, x, y)
         self.dimen.x, self.dimen.y = x, y
-        local txt = string.format("Brightness: %d%%", math.floor(parent.value * 100 + 0.5))
+        local txt = string.format("亮度：%d%%", math.floor(parent.value * 100 + 0.5))
         if txt ~= self._last_text or not self._tw then
             if self._tw then self._tw:free() end
             self._tw = TextWidget:new { text = txt, face = face }
@@ -562,17 +561,17 @@ function ColorWheelWidget:showHexInput()
     local r, g, b = hsvToRgb(self.hue, self.saturation, self.value)
     local dialog
     dialog = InputDialog:new {
-        title = "Enter color code",
+        title = "输入颜色代码",
         input = string.format("#%02X%02X%02X", r, g, b),
         input_hint = "#FFFFFF",
         buttons = { {
             {
-                text = "Cancel",
+                text = "取消",
                 id = "close",
                 callback = function() UIManager:close(dialog) end,
             },
             {
-                text = "Set",
+                text = "确定",
                 is_enter_default = true,
                 callback = function()
                     local text = dialog:getInputText()
@@ -618,7 +617,7 @@ function ColorWheelWidget:update()
 
     local title_bar    = TitleBar:new {
         width            = self.width,
-        title            = nf_icons.label(nf_icons.EYEDROPPER, self.title_text),
+        title            = self.title_text,
         with_bottom_line = true,
         close_button     = true,
         close_callback   = function() self:onClose() end,

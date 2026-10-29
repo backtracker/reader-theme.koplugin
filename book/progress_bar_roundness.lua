@@ -4,7 +4,6 @@ local Screen = require("device").screen
 local Setting = require("lib/setting")
 local SpinWidget = require("ui/widget/spinwidget")
 local UIManager = require("ui/uimanager")
-local nf_icons = require("lib/nf_icons")
 local _ = require("gettext")
 local T = require("ffi/util").template
 
@@ -14,15 +13,15 @@ local ProgressBarRoundFill = Setting("book_progress_bar_round_fill", false) -- W
 
 local function progress_bar_roundness_menu()
     return {
-        text_func = function() return nf_icons.label(nf_icons.ROUNDED_CORNER, _("Progress bar roundness")) end,
+        text_func = function() return _("进度条圆角") end,
         keep_menu_open = true,
         sub_item_table = {
             {
-                text_func = function() return T(_("Radius: %1"), ProgressBarRadius.get()) end,
+                text_func = function() return T(_("圆角半径：%1"), ProgressBarRadius.get()) end,
                 keep_menu_open = true,
                 callback = function(touchmenu_instance)
                     local spin = SpinWidget:new {
-                        title_text = _("Progress bar radius"),
+                        title_text = _("进度条圆角半径"),
                         value = ProgressBarRadius.get(),
                         default_value = 2,
                         value_min = 0,
@@ -39,7 +38,7 @@ local function progress_bar_roundness_menu()
                 end
             },
             {
-                text = _("Round fill bar"),
+                text = _("圆角填充"),
                 checked_func = ProgressBarRoundFill.get,
                 callback = function()
                     ProgressBarRoundFill.toggle()

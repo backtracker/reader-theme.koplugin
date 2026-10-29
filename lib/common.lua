@@ -1,20 +1,8 @@
-local Blitbuffer = require("ffi/blitbuffer")
-local Device = require("device")
 local Event = require("ui/event")
 local ReaderUI = require("apps/reader/readerui")
 local UIManager = require("ui/uimanager")
-local _ = require("gettext")
 
 local common = {}
-
--- Special color that indicates the color should either stay white/black or be set to the original bgcolor/fgcolor
--- Used for ReaderFooter and ScreenSaverWidget
-common.EXCLUSION_COLOR = Blitbuffer.colorFromString("#DAAAAD")
-local EXCLUSION_COLOR_RGB32 = common.EXCLUSION_COLOR:getColorRGB32()
-
-function common.is_excluded(color)
-    return color and color:getColorRGB32() == EXCLUSION_COLOR_RGB32
-end
 
 -- Helper: invert a hex color string "#RRGGBB" → "#(FF-R)(FF-G)(FF-B)"
 function common.invertColor(hex)
@@ -83,29 +71,6 @@ function common.hexToHSV(hex)
     return h, s, v
 end
 
--- Helper: compute luminance of a color (0 = black, 1 = white)
-function common.luminance(color)
-    return 0.299 * color:getR() + 0.587 * color:getG() + 0.114 * color:getB()
-end
-
--- Helper: compute contrast between two colors
-function common.contrast(c1, c2)
-    return math.abs(common.luminance(c1) - common.luminance(c2))
-end
-
--- Helper: lighten a color by a set percent
-function common.lightenColor(c, amount)
-    local r = c:getR()
-    local g = c:getG()
-    local b = c:getB()
-
-    return Blitbuffer.ColorRGB32(
-        math.floor(r + (255 - r) * amount),
-        math.floor(g + (255 - g) * amount),
-        math.floor(b + (255 - b) * amount)
-    )
-end
-
 -- Helper: check if a color is grayscale
 function common.isGrayscale(hex)
     hex = hex:gsub("#", "")
@@ -124,11 +89,6 @@ end
 -- Helper: check if we have a document open
 function common.has_document_open()
     return ReaderUI.instance ~= nil and ReaderUI.instance.document ~= nil
-end
-
--- Helper: refresh the file list
-function common.refreshFileManager()
-    UIManager:broadcastEvent(Event:new("RefreshContent"))
 end
 
 -- Helper: check if a value exists in a table
@@ -166,77 +126,6 @@ end
 function common.add_separator(tbl)
     tbl.separator = true
     return tbl
-end
-
-function common.handleLink(link)
-    local ok = false
-    if Device.openLink then
-        local _ok, ret = pcall(function() return Device:openLink(link) end)
-        if _ok and ret then ok = true end
-    end
-    if not ok and Device.input and Device.input.setClipboardText then
-        pcall(function() Device.input.setClipboardText(link) end)
-        local Notification = require("ui/widget/notification")
-        UIManager:show(Notification:new {
-            text = _("Link copied to clipboard"),
-        })
-    end
-end
-
-local function run(cmd)
-    local f = io.popen(cmd .. " 2>/dev/null")
-    if not f then return "" end
-    local out = f:read("*a") or ""
-    f:close()
-    return out
-end
-
-local function nameIsDark(out)
-    if out == "" then return nil end
-    return out:lower():find("dark", 1, true) ~= nil
-end
-
-local checks = {
-    -- Freedesktop portal: 1 = dark, 2 = light, 0 = no preference
-    {
-        cmd = "gdbus call --session --dest org.freedesktop.portal.Desktop"
-            .. " --object-path /org/freedesktop/portal/desktop"
-            .. " --method org.freedesktop.portal.Settings.Read"
-            .. " org.freedesktop.appearance color-scheme",
-        parse = function(out)
-            local v = out:match("uint32 (%d)")
-            if v then return v == "1" end
-        end,
-    },
-    -- GNOME color-scheme: 'default', 'prefer-dark' or 'prefer-light'
-    {
-        cmd = "gsettings get org.gnome.desktop.interface color-scheme",
-        parse = function(out)
-            if out:find("prefer-dark", 1, true) then return true end
-            if out:find("default", 1, true) or out:find("prefer-light", 1, true) then
-                return false
-            end
-        end,
-    },
-    -- Older GTK fallback: theme name
-    {
-        cmd = "gsettings get org.gnome.desktop.interface gtk-theme",
-        parse = nameIsDark,
-    },
-    -- KDE color scheme name
-    {
-        cmd = "kreadconfig5 --group General --key ColorScheme",
-        parse = nameIsDark,
-    },
-}
-
--- Returns true (dark), false (light), or nil (unknown)
-function common.isSystemDark()
-    for _, check in ipairs(checks) do
-        local result = check.parse(run(check.cmd))
-        if result ~= nil then return result end
-    end
-    return nil
 end
 
 return common

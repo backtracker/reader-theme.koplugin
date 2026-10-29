@@ -1,7 +1,6 @@
 local Blitbuffer = require("ffi/blitbuffer")
 local ColorWheelWidget = require("widgets/colorwheelwidget")
 local Dispatcher = require("dispatcher")
-local FileManager = require("apps/filemanager/filemanager")
 local FootnoteWidget = require("ui/widget/footnotewidget")
 local ReaderStyleTweak = require("apps/reader/modules/readerstyletweak")
 local ReaderUI = require("apps/reader/readerui")
@@ -9,7 +8,6 @@ local Screen = require("device").screen
 local Setting = require("lib/setting")
 local UIManager = require("ui/uimanager")
 local common = require("lib/common")
-local nf_icons = require("lib/nf_icons")
 local util = require("util")
 
 local HexFontColor = Setting("book_font_color_hex", "#000000")
@@ -87,7 +85,7 @@ local function pick_color_callback()
         local wheel
         local should_invert_wheel = AltNightFontColor.get() or not InvertFontColor.get()
         wheel = ColorWheelWidget:new({
-            title_text = "Pick font color",
+            title_text = _("选择文字颜色"),
             hue = h,
             saturation = s,
             value = v,
@@ -112,18 +110,18 @@ end
 local function font_color_menu()
     return {
         text_func = function()
-            return T(nf_icons.label(nf_icons.BORDER_COLOR, _("Font color: %1")), getFontColor())
+            return T(_("文字颜色：%1"), getFontColor())
         end,
         sub_item_table = {
             {
                 text_func = function()
-                    return T(_("Font color: %1"), getFontColor())
+                    return T(_("文字颜色：%1"), getFontColor())
                 end,
                 keep_menu_open = true,
                 callback = pick_color_callback(),
             },
             {
-                text = _("Alternative night mode color"),
+                text = _("夜间模式使用独立颜色"),
                 checked_func = AltNightFontColor.get,
                 callback = function()
                     AltNightFontColor.toggle()
@@ -137,7 +135,7 @@ local function font_color_menu()
                 end,
             },
             {
-                text = _("Invert color in night mode"),
+                text = _("夜间模式反转颜色"),
                 enabled_func = function() return not AltNightFontColor.get() end,
                 checked_func = InvertFontColor.get,
                 callback = function()
@@ -152,7 +150,7 @@ local function font_color_menu()
                 separator = true,
             },
             {
-                text = _("Apply to reader pages (pdf, djvu, cbz...)"),
+                text = _("应用到阅读页面（PDF、DjVu、CBZ…）"),
                 checked_func = FixedFontColor.get,
                 callback = function()
                     FixedFontColor.toggle()
@@ -202,20 +200,10 @@ function FootnoteWidget:init()
         vgroup = vgroup[1]
     end
     local linewidget = vgroup[1]
-    linewidget.original_background = fg_cached.fgcolor
-    linewidget.background = common.EXCLUSION_COLOR
+    linewidget.background = fg_cached.fgcolor
 end
 
 -- Recompute colors upon event call
-local original_FileManager_onRecomputeAllColors = FileManager.onRecomputeAllColors
-function FileManager:onRecomputeAllColors()
-    if original_FileManager_onRecomputeAllColors then
-        original_FileManager_onRecomputeAllColors(self)
-    end
-
-    recomputeFGColor()
-end
-
 local original_ReaderUI_onRecomputeAllColors = ReaderUI.onRecomputeAllColors
 function ReaderUI:onRecomputeAllColors()
     if original_ReaderUI_onRecomputeAllColors then
@@ -225,19 +213,7 @@ function ReaderUI:onRecomputeAllColors()
     recomputeFGColor()
 end
 
--- Event handlers for when a theme is applied
-local original_FileManager_onApplyTheme = FileManager.onApplyTheme
-function FileManager:onApplyTheme()
-    if original_FileManager_onApplyTheme then
-        original_FileManager_onApplyTheme(self)
-    end
-
-    fg_cached.hex = HexFontColor.get()
-    fg_cached.night_hex = NightHexFontColor.get()
-    fg_cached.alt_night_color = AltNightFontColor.get()
-    recomputeFGColor()
-end
-
+-- Event handler for when a theme is applied
 local original_ReaderUI_onApplyTheme = ReaderUI.onApplyTheme
 function ReaderUI:onApplyTheme()
     if original_ReaderUI_onApplyTheme then
@@ -263,25 +239,22 @@ local function SetBookFontColorFixed(apply_on)
     common.refreshPage()
 end
 
-FileManager.onToggleBookFontColorFixed = ToggleBookFontColorFixed
 ReaderUI.onToggleBookFontColorFixed = ToggleBookFontColorFixed
-
-FileManager.onSetBookFontColorFixed = SetBookFontColorFixed
 ReaderUI.onSetBookFontColorFixed = SetBookFontColorFixed
 
 Dispatcher:registerAction("toggle_book_font_color_fixed", {
     category = "none",
     event = "ToggleBookFontColorFixed",
-    title = _("Toggle font color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("切换是否将文字颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     general = true,
 })
 
 Dispatcher:registerAction("set_book_font_color_fixed", {
     category = "string",
     event = "SetBookFontColorFixed",
-    title = _("Set font color application for reader pages (pdf, djvu, cbz...)"),
+    title = _("设置是否将文字颜色应用到阅读页面（PDF、DjVu、CBZ…）"),
     args = { true, false },
-    toggle = { _("on"), _("off") },
+    toggle = { _("开"), _("关") },
     general = true,
 })
 
